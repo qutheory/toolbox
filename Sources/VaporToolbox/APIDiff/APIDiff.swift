@@ -8,7 +8,9 @@ public final class APIDiff: Command {
     public let signature: [Argument] = [
         Value(name: "old-tag", help: ["Old API tag"]),
         Value(name: "new-tag", help: ["New API tag"]),
-        Value(name: "scheme", help: ["Name of the scheme to analyze"])
+        Value(name: "scheme", help: ["Name of the scheme to analyze"]),
+        Option(name: "skip-prepare", help: ["Skips the preparation step. *_api.json files must already exist."]),
+        Option(name: "symbols", help: ["Shows symbols"]),
     ]
     
     public let help: [String] = [
@@ -28,19 +30,21 @@ public final class APIDiff: Command {
             throw ToolboxError.general("SourceKitten required (brew install sourcekitten)")
         }
         
-        let oldTag = try value("old-tag", from: arguments)
-        let newTag = try value("new-tag", from: arguments)
-        let scheme = try value("scheme", from: arguments)
-        
         let oldPath = ".old_api.json"
         let newPath = ".new_api.json"
         
-        try prepareTag(oldTag, scheme: scheme)
-        try parseTag(oldTag, to: oldPath, scheme: scheme)
+        if arguments.option("skip-prepare")?.bool != true {
+            let oldTag = try value("old-tag", from: arguments)
+            let newTag = try value("new-tag", from: arguments)
+            let scheme = try value("scheme", from: arguments)
 
-        try prepareTag(newTag, scheme: scheme)
-        try parseTag(newTag, to: newPath, scheme: scheme)
-        
+            try prepareTag(oldTag, scheme: scheme)
+            try parseTag(oldTag, to: oldPath, scheme: scheme)
+            
+            try prepareTag(newTag, scheme: scheme)
+            try parseTag(newTag, to: newPath, scheme: scheme)
+        }
+
         let oldBytes = try DataFile().load(path: oldPath)
         let newBytes = try DataFile().load(path: newPath)
         
@@ -51,25 +55,40 @@ public final class APIDiff: Command {
         let newSymbols = try parseSymbols(from: new)
         
         var stableKeys: [SourceKey] = []
+        var newKeys: [SourceKey] = []
         var missingKeys: [SourceKey] = []
         
         for (oldSymbol, oldKey) in oldSymbols {
-            if let _ = newSymbols[oldSymbol] {
-                stableKeys.append(oldKey)
-            } else {
+            if newSymbols[oldSymbol] == nil{
                 missingKeys.append(oldKey)
+            } else {
+                stableKeys.append(oldKey)
             }
         }
         
-        for key in stableKeys {
-            console.success(key.name ?? "n/a", newLine: false)
-            console.print(" ", newLine: false)
-            console.print(key.usr ?? "n/a")
+        for (newSymbol, newKey) in newSymbols {
+            if oldSymbols[newSymbol] == nil {
+                newKeys.append(newKey)
+            }
         }
-        for key in missingKeys {
-            console.warning(key.name ?? "n/a", newLine: false)
-            console.print(" ", newLine: false)
-            console.print(key.usr ?? "n/a")
+        
+        console.print("Stable API...")
+        printKeys(stableKeys, .info, arguments: arguments)
+        console.print("Missing/changed API...")
+        printKeys(missingKeys, .warning, arguments: arguments)
+        console.print("New API...")
+        printKeys(newKeys, .success, arguments: arguments)
+    }
+    
+    func printKeys(_ keys: [SourceKey], _ style: ConsoleStyle, arguments: [String]) {
+        for key in keys {
+            console.output(key.name ?? "n/a", style: style, newLine: false)
+            if arguments.option("symbols")?.bool == true {
+                console.print(" ", newLine: false)
+                console.print(key.usr ?? "n/a")
+            } else {
+                console.print()
+            }
         }
     }
     
@@ -82,7 +101,7 @@ public final class APIDiff: Command {
     func prepareTag(_ tag: String, scheme: String) throws {
         console.info("Preparing tag \(tag)...")
         console.info("Cleaning...")
-        try console.foregroundExecute(program: "/bin/sh", arguments: ["-c", "rm .build Package.pins *.xcodeproj *.xcworkspace"])
+        try console.foregroundExecute(program: "/bin/sh", arguments: ["-c", "rm -rf .build Package.pins *.xcodeproj *.xcworkspace"])
         console.info("Checking out tag...")
         try console.foregroundExecute(program: "git", arguments: ["checkout", tag])
         console.info("Generating Xcode project...")
@@ -115,6 +134,7 @@ public final class APIDiff: Command {
         
         try docs.forEach { doc in
             guard let rawFiles = doc.object else {
+                print("not an object")
                 return
             }
             for (key, file) in rawFiles {

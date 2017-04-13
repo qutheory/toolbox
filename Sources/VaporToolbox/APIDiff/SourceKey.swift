@@ -46,12 +46,18 @@ extension SourceKey: JSONInitializable {
             return try SourceKey(json: subkeyJSON)
         } ?? []
         
+        // O4Node4Node -> V4Node4Node
+        var usr: String? = try json.get(DotKey("key.usr"))
+        if usr?.contains("O4Node4Node") == true {
+            usr = usr?.replacingOccurrences(of: "O4Node4Node", with: "V4Node4Node")
+        }
+        
         try self.init(
             accessLevel: SourceAccessLevel(json: json.get(DotKey("key.accessibility"))),
             kind: json.get(DotKey("key.kind")),
             name: name,
             typeName: json.get(DotKey("key.typename")),
-            usr: json.get(DotKey("key.usr")),
+            usr: usr,
             typeUsr: json.get(DotKey("key.typeusr")),
             subKeys: subkeys
         )
