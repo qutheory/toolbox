@@ -6,8 +6,8 @@ public final class APIDiff: Command {
     public let id = "api-diff"
     
     public let signature: [Argument] = [
-        Value(name: "old-tag", help: ["Path to SourceKitten docs JSON output for old API."]),
-        Value(name: "new-tag", help: ["Path to SourceKitten docs JSON output for new API."]),
+        Value(name: "old-tag", help: ["Old API tag"]),
+        Value(name: "new-tag", help: ["New API tag"]),
         Value(name: "scheme", help: ["Name of the scheme to analyze"])
     ]
     
@@ -22,6 +22,12 @@ public final class APIDiff: Command {
     }
     
     public func run(arguments: [String]) throws {
+        do {
+            _ = try console.backgroundExecute(program: "sourcekitten", arguments: ["help"])
+        } catch {
+            throw ToolboxError.general("SourceKitten required (brew install sourcekitten)")
+        }
+        
         let oldTag = try value("old-tag", from: arguments)
         let newTag = try value("new-tag", from: arguments)
         let scheme = try value("scheme", from: arguments)
