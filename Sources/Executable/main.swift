@@ -27,6 +27,7 @@ do {
         Test(console: terminal),
         Xcode(console: terminal),
         Version(console: terminal, version: version),
+        APIDiff(console: terminal),
         cloud,
         Group(id: "heroku", commands: [
             HerokuInit(console: terminal),
