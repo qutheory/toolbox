@@ -1,6 +1,6 @@
-import Console
+/*import Console
 import Vapor
-import Cloud
+// import Cloud
 import HTTP
 
 public final class ProviderAdd: Command {
@@ -186,3 +186,4 @@ struct Tag: JSONInitializable, CustomStringConvertible {
         }
     }
 }
+*/

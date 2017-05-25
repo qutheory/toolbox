@@ -15,32 +15,34 @@ public final class Clean: Command {
 
     public let console: ConsoleProtocol
 
-    public init(console: ConsoleProtocol) {
+    public init(_ console: ConsoleProtocol) {
         self.console = console
     }
 
-    public func run(arguments: [String]) throws {
-        let override = console.confirmOverride ?? false
-        if !override {
-            console.warning("Cleaning will increase your build time ... ")
-            console.warning("We recommend trying 'vapor update' first.")
-            guard console.confirm("Would you like to clean anyways?") else { return }
-            console.info("Use `-y` to bypass this command in the future.")
+    public func run() throws {
+        try clean()
+    }
+    
+    internal func clean() throws {
+        console.warning("Cleaning will increase your build time ... ")
+        console.warning("We recommend trying 'vapor update' first.")
+        guard console.confirm("Would you like to clean anyways?") else {
+            return
         }
-
-        let cleanBar = console.loadingBar(title: "Cleaning", animated: !arguments.isVerbose)
+        
+        let cleanBar = console.loadingBar(title: "Cleaning", animated: true) // fixme
         cleanBar.start()
-
+        
         _ = try console.backgroundExecute(program: "rm", arguments: ["-rf", ".build"])
-
-        if arguments.flag("xcode") {
+        
+        if try flag("xcode") {
             _ = try console.backgroundExecute(program: "rm", arguments: ["-rf", "*.xcodeproj"])
         }
-
-        if arguments.flag("pins") {
+        
+        if try flag("pins") {
             _ = try console.backgroundExecute(program: "rm", arguments: ["-rf", "Package.pins"])
         }
-
+        
         cleanBar.finish()
     }
 }

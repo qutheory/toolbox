@@ -15,19 +15,25 @@ public final class Run: Command {
 
     public let console: ConsoleProtocol
 
-    public init(console: ConsoleProtocol) {
+    public init(_ console: ConsoleProtocol) {
         self.console = console
     }
 
-    public func run(arguments: [String]) throws {
+    public func run() throws {
+        let configuration = try flag("release") ? "release" : "debug"
+        let packageName = try projectInfo.packageName()
+        console.print("Running ", newLine: false)
+        console.info(packageName, newLine: false)
+        console.print(" in ", newLine: false)
+        console.warning(configuration, newLine: false)
+        console.print(" mode...")
+        
         do {
-            let executable = try executablePath(arguments)
+            let executable = try executablePath()
 
             let configuredRunFlags = try Config.runFlags()
-            let passThrough = arguments + configuredRunFlags
+            let passThrough = [] + configuredRunFlags
 
-            let packageName = try projectInfo.packageName()
-            console.info("Running \(packageName) ...")
 
             try console.foregroundExecute(
                 program: executable,
@@ -38,8 +44,8 @@ public final class Run: Command {
         }
     }
 
-    private func buildFolder(_ arguments: [String]) throws -> String {
-        let configuration = arguments.flag("release") ? "release" : "debug"
+    private func buildFolder() throws -> String {
+        let configuration = try flag("release") ? "release" : "debug"
         let folder = ".build/\(configuration)"
 
         do {
@@ -51,9 +57,9 @@ public final class Run: Command {
         return folder
     }
 
-    private func executablePath(_ arguments: [String]) throws -> String {
-        let folder = try buildFolder(arguments)
-        let exec = try arguments.options["exec"] ?? getExecutableToRun()
+    private func executablePath() throws -> String {
+        let folder = try buildFolder()
+        let exec = try option("exec") ?? getExecutableToRun()
         let executablePath = "\(folder)/\(exec)"
         try verify(executablePath: executablePath)
         return executablePath
@@ -61,7 +67,7 @@ public final class Run: Command {
 
     private func verify(executablePath: String) throws {
         let pathExists = try? console.backgroundExecute(program: "ls", arguments: [executablePath])
-        guard pathExists?.trim() == executablePath else {
+        guard pathExists?.makeString().trim() == executablePath else {
             console.warning("Could not find executable at \(executablePath).")
             console.warning("Make sure 'vapor build' has been called.")
             throw ToolboxError.general("No executable found.")

@@ -3,10 +3,10 @@ import PackageDescription
 let package = Package(
     name: "VaporToolbox",
     targets: [
-        Target(name: "VaporToolbox", dependencies: ["Cloud", "Shared"]),
+        Target(name: "VaporToolbox"), // , dependencies: ["Cloud", "Shared"]
         Target(name: "Executable", dependencies: ["VaporToolbox"]),
-        Target(name: "Cloud", dependencies: ["Shared"]),
-        Target(name: "Shared"),
+        //Target(name: "Cloud", dependencies: ["Shared"]),
+        //Target(name: "Shared"),
     ],
     dependencies: [
         // Vapor Cloud clients.
@@ -23,5 +23,6 @@ let package = Package(
         
         // Redis
         .Package(url: "https://github.com/vapor/redis.git", majorVersion: 2),
-    ]
+    ],
+    exclude: ["Sources/Cloud", "Sources/Shared"]
 )

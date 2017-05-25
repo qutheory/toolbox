@@ -9,25 +9,25 @@ public final class New: Command {
     public let signature: [Argument]
 
     public let help: [String] = [
-        "Creates a new Vapor application from a template.",
-        "Use --template=repo/template for github templates",
-        "Use --template=full-url-here.git for non github templates",
+        "Creates a new Vapor application from a template."
     ]
 
     public let console: ConsoleProtocol
 
-    public init(console: ConsoleProtocol) {
+    public init(_ console: ConsoleProtocol) {
         self.console = console
 
         signature = [
             Value(name: "name", help: [
                 "The application's executable name."
             ]),
-            Option(name: "template", help: [
+            Option(name: "template", shortcut: "t", help: [
                 "The template repository to clone.",
-                "Default: \(defaultTemplate)."
+                "Default: \(defaultTemplate).",
+                "Use --template=repo/template for github templates",
+                "Use --template=full-url-here.git for non github templates"
             ]),
-            Option(name: "branch", help: [
+            Option(name: "branch", shortcut: "b", help: [
                 "An optional branch to specify when cloning",
             ]),
             Option(name: "tag", help: [
@@ -36,20 +36,20 @@ public final class New: Command {
         ]
     }
 
-    public func run(arguments: [String]) throws {
-        let template = try loadTemplate(arguments: arguments)
-        let name = try value("name", from: arguments)
+    public func run() throws {
+        let template = try loadTemplate()
+        let name = try value("name")
         let gitDir = "--git-dir=./\(name)/.git"
         let workTree = "--work-tree=./\(name)"
 
-        let isVerbose = arguments.isVerbose
+        let isVerbose = try option("verbose")?.bool ?? false
         let cloneBar = console.loadingBar(title: "Cloning Template", animated: !isVerbose)
         cloneBar.start()
 
         do {
             _ = try console.execute(verbose: isVerbose, program: "git", arguments: ["clone", "\(template)", "\(name)"])
 
-            if let checkout = arguments.options["tag"]?.string ?? arguments.options["branch"]?.string {
+            if let checkout = try option("tag") ?? option("branch") {
                 _ = try console.execute(
                     verbose: isVerbose,
                     program: "git",
@@ -73,7 +73,7 @@ public final class New: Command {
         repository.start()
         do {
             let file = "\(name)/Package.swift"
-            var manifest = try console.backgroundExecute(program: "/bin/sh", arguments: ["-c", "cat \(file)"])
+            var manifest = try console.backgroundExecute(program: "/bin/sh", arguments: ["-c", "cat \(file)"]).makeString()
             manifest = manifest.components(separatedBy: "VaporApp").joined(separator: name)
             manifest = manifest.components(separatedBy: "\"").joined(separator: "\\\"")
             _ = try console.backgroundExecute(program: "/bin/sh", arguments: ["-c", "echo \"\(manifest)\" > \(file)"])
@@ -128,27 +128,37 @@ public final class New: Command {
         console.print()
     }
 
-    private func loadTemplate(arguments: [String]) throws -> String {
-        guard let template = arguments.options["template"]?.string else { return defaultTemplate }
+    private func loadTemplate() throws -> String {
+        guard let template = try option("template") else {
+            return defaultTemplate
+        }
+        
         return try expand(template: template)
     }
 
-    /**
-         http(s)://whatever.com/foo/bar => http(s)://whatever.com/foo/bar
-         foo/some-template => https://github.com/foo/some-template
-         some-template => https://github.com/vapor/some-template
-         some => https://github.com/vapor/some
-         if fails, attempts `-template` suffix
-         some => https://github.com/vapor/some-template
-    */
+    /// http(s)://whatever.com/foo/bar => http(s)://whatever.com/foo/bar
+    /// foo/some-template => https://github.com/foo/some-template
+    /// some-template => https://github.com/vapor/some-template
+    /// some => https://github.com/vapor/some
+    /// if fails, attempts `-template` suffix
+    /// some => https://github.com/vapor/some-template
     private func expand(template: String) throws -> String {
         // if valid URL, use it
-        guard !isValid(url: template) else { return template }
+        guard !isValid(url: template) else {
+            return template
+        }
+        
         // `/` indicates `owner/repo`
-        guard !template.contains("/") else { return "https://github.com/" + template }
+        guard !template.contains("/") else {
+            return "https://github.com/" + template
+        }
+        
         // no '/' indicates vapor default
         let direct = "https://github.com/vapor/" + template
-        guard !isValid(url: direct) else { return direct }
+        guard !isValid(url: direct) else {
+            return direct
+        }
+        
         // invalid url attempts `-template` suffix
         return direct + "-template"
     }
@@ -168,7 +178,7 @@ public final class New: Command {
                     url
                 ]
             )
-            return result.contains("200")
+            return result.makeString().contains("200")
         } catch {
             // yucky...
             return false

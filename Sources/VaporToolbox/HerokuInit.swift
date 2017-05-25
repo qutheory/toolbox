@@ -11,16 +11,16 @@ public final class HerokuInit: Command {
 
     public let console: ConsoleProtocol
 
-    public init(console: ConsoleProtocol) {
+    public init(_ console: ConsoleProtocol) {
         self.console = console
     }
 
-    public func run(arguments: [String]) throws {
+    public func run() throws {
 
         func gitIsClean(log: Bool = true) throws {
             do {
                 let status = try console.backgroundExecute(program: "git", arguments: ["status", "--porcelain"])
-                if status.trim() != "" {
+                if status.makeString().trim() != "" {
                     if log {
                         console.info("All current changes must be committed before running a Heroku init.")
                     }
@@ -35,7 +35,7 @@ public final class HerokuInit: Command {
 
         do {
             let branches = try console.backgroundExecute(program: "git", arguments: ["branch"])
-            guard branches.contains("* master") else {
+            guard branches.makeString().contains("* master") else {
                 throw ToolboxError.general(
                     "Please checkout master branch before initializing heroku. 'git checkout master'"
                 )
@@ -107,7 +107,7 @@ public final class HerokuInit: Command {
         console.info("Setting procfile...")
         let procContents = "web: \(appName) --env=production --workdir=\"./\" --config:servers.default.port=\\$PORT"
         do {
-            _ = try console.backgroundExecute(program: "/bin/sh", arguments: ["-c", "echo \"\(procContents)\" >> ./Procfile"])
+            _ = try console.backgroundExecute(program: "echo", arguments: [procContents,  ">>", "./Procfile"])
         } catch ConsoleError.backgroundExecute(_, let message, _) {
             throw ToolboxError.general("Unable to make Procfile: \(message)")
         }
@@ -124,10 +124,11 @@ public final class HerokuInit: Command {
         if console.confirm("Would you like to push to Heroku now?") {
             console.warning("This may take a while...")
 
-            let buildBar = console.loadingBar(title: "Building on Heroku ... ~5-10 minutes", animated: !arguments.isVerbose)
+            let isVerbose = try flag("verbose")
+            let buildBar = console.loadingBar(title: "Building on Heroku ... ~5-10 minutes", animated: !isVerbose)
             buildBar.start()
             do {
-                _ = try console.execute(verbose: arguments.isVerbose, program: "git", arguments: ["push", "heroku", "master"])
+                _ = try console.execute(verbose: isVerbose, program: "git", arguments: ["push", "heroku", "master"])
               buildBar.finish()
             } catch ConsoleError.backgroundExecute(_, let message, _) {
               buildBar.fail()
@@ -138,10 +139,10 @@ public final class HerokuInit: Command {
                 throw error
             }
 
-            let dynoBar = console.loadingBar(title: "Spinning up dynos", animated: !arguments.isVerbose)
+            let dynoBar = console.loadingBar(title: "Spinning up dynos", animated: !isVerbose)
             dynoBar.start()
             do {
-                _ = try console.execute(verbose: arguments.isVerbose, program: "heroku", arguments: ["ps:scale", "web=1"])
+                _ = try console.execute(verbose: isVerbose, program: "heroku", arguments: ["ps:scale", "web=1"])
                 dynoBar.finish()
             } catch ConsoleError.backgroundExecute(_, let message, _) {
                 dynoBar.fail()

@@ -11,11 +11,11 @@ public final class HerokuPush: Command {
 
     public let console: ConsoleProtocol
 
-    public init(console: ConsoleProtocol) {
+    public init(_ console: ConsoleProtocol) {
         self.console = console
     }
 
-    public func run(arguments: [String]) throws {
+    public func run() throws {
         do {
             _ = try console.backgroundExecute(program: "which", arguments: ["heroku"])
         } catch ConsoleError.backgroundExecute {
@@ -25,7 +25,7 @@ public final class HerokuPush: Command {
 
         do {
             let status = try console.backgroundExecute(program: "git", arguments: ["status", "--porcelain"])
-            if status.trim() != "" {
+            if status.makeString().trim() != "" {
                 console.info("All current changes must be committed before pushing to Heroku.")
                 throw ToolboxError.general("Found uncommitted changes.")
             }
@@ -33,10 +33,11 @@ public final class HerokuPush: Command {
             throw ToolboxError.general("No .git repository found.")
         }
 
-        let herokuBar = console.loadingBar(title: "Pushing to Heroku", animated: !arguments.isVerbose)
+        let isVerbose = try flag("verbose")
+        let herokuBar = console.loadingBar(title: "Pushing to Heroku", animated: !isVerbose)
         herokuBar.start()
         do {
-            try console.execute(verbose: arguments.isVerbose, program: "git", arguments: ["push", "heroku", "master"])
+            try console.execute(verbose: isVerbose, program: "git", arguments: ["push", "heroku", "master"])
             herokuBar.finish()
         } catch ConsoleError.execute(_) {
             herokuBar.fail()

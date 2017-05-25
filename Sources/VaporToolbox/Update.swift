@@ -1,4 +1,4 @@
-import Console
+/*import Console
 import libc
 
 public final class Update: Command {
@@ -68,3 +68,4 @@ public final class Update: Command {
         }
     }
 }
+*/

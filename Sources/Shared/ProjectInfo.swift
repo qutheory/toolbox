@@ -22,13 +22,13 @@ public final class ProjectInfo {
             program: "swift",
             arguments: ["package", "dump-package"]
         )
-        return try? JSON(bytes: dump.makeBytes())
+        return try? JSON(bytes: dump)
     }
 
     public func isSwiftProject() -> Bool {
         do {
             let result = try console.backgroundExecute(program: "ls", arguments: ["./Package.swift"])
-            return result.trim() == "./Package.swift"
+            return result.makeString().trim() == "./Package.swift"
         } catch {
             return false
         }
@@ -87,7 +87,7 @@ public final class ProjectInfo {
                 "HEAD"
             ]
         )
-        return version.trim()
+        return version.makeString().trim()
     }
 
     public func availableExecutables() throws -> [String] {
@@ -95,7 +95,7 @@ public final class ProjectInfo {
             program: "find",
             arguments: ["./Sources", "-type", "f", "-name", "main.swift"]
         )
-        let names = executables.components(separatedBy: "\n")
+        let names = executables.makeString().components(separatedBy: "\n")
             .flatMap { path in
                 return path.components(separatedBy: "/")
                     .dropLast() // drop main.swift
@@ -114,8 +114,8 @@ public final class ProjectInfo {
 
     public func buildFolderExists() -> Bool {
         do {
-            let ls = try console.backgroundExecute(program: "ls", arguments: ["-a", "."])
-            return ls.contains(".build")
+            let ls = try console.backgroundExecute(program: "ls", arguments: ["-a",  "."])
+            return ls.makeString().contains(".build")
         } catch { return false }
     }
 }

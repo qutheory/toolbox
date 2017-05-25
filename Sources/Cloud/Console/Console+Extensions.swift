@@ -31,9 +31,11 @@ extension ConsoleProtocol {
         }
     }
     public func verifyAboveCorrect() throws {
+        pushEphemeral()
         guard confirm("Is the above information correct?") else {
             throw "Cancelled"
         }
+        popEphemeral()
     }
 }
 
@@ -64,13 +66,6 @@ extension ConsoleProtocol {
             // undo previous offset back to 0 indexing
             let offset = idx - 1
             res = array[offset]
-        }
-        
-        // + 1 for > input line
-        // + 1 for title line
-        let lines = array.count + 2
-        for _ in 1...lines {
-            clear(.line)
         }
         
         return res!

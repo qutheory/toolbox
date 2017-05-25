@@ -1,4 +1,4 @@
-import Console
+/*import Console
 import Foundation
 
 public final class Xcode: Command {
@@ -104,3 +104,4 @@ public final class Xcode: Command {
         _ = try console.execute(verbose: arguments.isVerbose, program: "/bin/sh", arguments: ["-c", "open *.xcodeproj"])
     }
 }
+*/

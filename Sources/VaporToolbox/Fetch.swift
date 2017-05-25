@@ -6,62 +6,49 @@ import Core
 public final class Fetch: Command {
     public let id = "fetch"
 
-    public let signature: [Argument] = [
-        Option(name: "clean", help: ["Cleans the project before fetching."])
-    ]
+    public let signature: [Argument]
 
     public let help: [String] = [
         "Fetches the application's dependencies."
     ]
 
     public let console: ConsoleProtocol
+    
+    let clean: Clean
 
-    public init(console: ConsoleProtocol) {
+    public init(_ console: ConsoleProtocol) {
         self.console = console
+        
+        self.clean = Clean(console)
+        
+        self.signature = [
+            Option(name: "clean", help: ["Cleans the project before fetching."])
+        ] + clean.signature
     }
 
-    public func run(arguments: [String]) throws {
-        try clean(arguments)
-        try fetchWarning()
-        try fetch(arguments)
+    public func run() throws {
+        if try flag("clean") {
+            try clean.run()
+        }
+        
+        try fetch()
     }
-
-    private func clean(_ arguments: [String]) throws {
-        guard arguments.flag("clean") else { return }
-        let clean = Clean(console: console)
-        try clean.run(arguments: arguments)
-    }
-
-    private func fetchWarning() throws {
-        if !projectInfo.buildFolderExists() {
+    
+    internal func fetch() throws {
+        if !console.projectInfo.buildFolderExists() {
             console.warning("No .build folder, fetch may take a while...")
         }
-    }
-
-    private func fetch(_ arguments: [String]) throws {
-        let isVerbose = arguments.isVerbose
+        
+        let isVerbose = try flag("verbose")
         let depBar = console.loadingBar(title: "Fetching Dependencies", animated: !isVerbose)
         depBar.start()
 
-        let pass = arguments.removeFlags(["clean", "run", "fetch", "release", "verbose"])
         try console.execute(
             verbose: isVerbose,
             program: "swift",
-            arguments: ["package", "--enable-prefetching", "fetch"] + pass
+            arguments: ["package", "--enable-prefetching", "fetch"]
         )
         depBar.finish()
-    }
-}
-
-extension Array where Element == String {
-    func removeFlags(_ flags: [String]) -> [String] {
-        let flags = flags.flatMap { ["--\($0)", "-\($0)"] }
-        return filter { argument in
-            for flag in flags where argument.hasPrefix(flag) {
-                return false
-            }
-            return true
-        }
     }
 }
 

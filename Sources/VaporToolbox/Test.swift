@@ -11,12 +11,12 @@ public final class Test: Command {
 
     public let console: ConsoleProtocol
 
-    public init(console: ConsoleProtocol) {
+    public init(_ console: ConsoleProtocol) {
         self.console = console
     }
 
-    public func run(arguments: [String]) throws {
-        let isVerbose = arguments.isVerbose
+    public func run() throws {
+        let isVerbose = try flag("verbose")
         let testBar = console.loadingBar(title: "Testing", animated: !isVerbose)
         testBar.start()
 

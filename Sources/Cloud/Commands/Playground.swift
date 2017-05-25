@@ -428,7 +428,7 @@ public final class CloudInit: Command {
 
 func currentGitBranch(with console: ConsoleProtocol) -> String? {
     let branch = try? console.backgroundExecute(program: "git", arguments: ["branch"])
-    return branch?.trim()
+    return branch?.makeString().trim()
 }
 
 import Core

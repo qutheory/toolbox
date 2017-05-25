@@ -10,53 +10,55 @@ extension Array where Element == String {
 public final class Build: Command {
     public let id = "build"
 
-    public let signature: [Argument] = [
-        Option(name: "run", help: ["Runs the project after building."]),
-        Option(name: "clean", help: ["Cleans the project before building."]),
-        Option(name: "fetch", help: ["Fetches the project before building, default true."]),
-        Option(name: "debug", help: ["Builds with debug symbols."]),
-        Option(name: "verbose", help: ["Print build logs instead of loading bar."]),
-        Option(name: "release", help: ["Builds release configuration"])
-    ]
+    public let signature: [Argument]
 
     public let help: [String] = [
         "Compiles the application."
     ]
 
     public let console: ConsoleProtocol
+    
+    let clean: Clean
+    let fetch: Fetch
+    let runCommand: Run
 
-    public init(console: ConsoleProtocol) {
+    public init(_ console: ConsoleProtocol) {
         self.console = console
-    }
-
-    public func run(arguments: [String]) throws {
-        try clean(arguments)
-        try fetch(arguments)
-        try build(arguments)
-        try run(arguments)
-    }
-
-    private func clean(_ arguments: [String]) throws {
-        guard arguments.flag("clean") else { return }
-        let arguments = arguments.removeFlags(["clean"])
-        let clean = Clean(console: console)
-        try clean.run(arguments: arguments)
-    }
-
-    private func fetch(_ arguments: [String]) throws {
-        let needsFetch = !projectInfo.buildFolderExists()
-        let shouldFetch = arguments.option("fetch")?.bool ?? needsFetch
-        guard shouldFetch else { return }
         
-        let arguments = arguments.removeFlags(["clean", "fetch", "y"])
-        let fetch = Fetch(console: console)
-        try fetch.run(arguments: arguments)
+        self.clean = Clean(console)
+        self.fetch = Fetch(console)
+        self.runCommand = Run(console)
+        
+        self.signature = [
+            Option(name: "run", help: ["Runs the project after building."]),
+            Option(name: "clean", help: ["Cleans the project before building."]),
+            Option(name: "fetch", help: ["Fetches the project before building, default true."]),
+            Option(name: "debug", help: ["Builds with debug symbols."]),
+            Option(name: "verbose", help: ["Print build logs instead of loading bar."]),
+            Option(name: "release", help: ["Builds release configuration"])
+        ] + clean.signature + fetch.signature + runCommand.signature
     }
 
-    private func build(_ arguments: [String]) throws {
-        let buildFlags = try loadBuildFlags(arguments)
+    public func run() throws {
+        if try flag("clean") {
+            try clean.run()
+        }
+        
+        if try flag("fetch") {
+            try fetch.run()
+        }
+        
+        try build()
+        
+        if try flag("run") {
+            try runCommand.run()
+        }
+    }
 
-        let isVerbose = arguments.isVerbose
+    private func build() throws {
+        let buildFlags = try loadBuildFlags()
+
+        let isVerbose = try flag("verbose")
         let buildBar = console.loadingBar(title: "Building Project", animated: !isVerbose)
         buildBar.start()
 
@@ -74,32 +76,24 @@ public final class Build: Command {
         }
     }
 
-    private func run(_ arguments: [String]) throws {
-        guard arguments.flag("run") else { return }
-        let args = arguments.removeFlags(["clean", "run", "fetch", "verbose"])
-
-        let run = Run(console: console)
-        try run.run(arguments: args)
-    }
-
-    private func loadBuildFlags(_ arguments: [String]) throws -> [String] {
+    private func loadBuildFlags() throws -> [String] {
         var buildFlags = try Config.buildFlags()
 
-        if arguments.flag("debug") {
+        if try flag("debug") {
             // Appending these flags aids in debugging
             // symbols on linux
             buildFlags += ["-Xswiftc", "-g"]
         }
 
-        if arguments.flag("release") {
+        if try flag("release") {
             buildFlags += ["--configuration", "release"]
         }
 
         // Setup passthrough
-        buildFlags += arguments
-            .removeFlags(["clean", "run", "debug", "verbose", "fetch", "release"])
-            .options
-            .map { name, value in "--\(name)=\(value)" }
+        //buildFlags += arguments
+         //   .removeFlags(["clean", "run", "debug", "verbose", "fetch", "release"])
+           // .options
+            //.map { name, value in "--\(name)=\(value)" }
 
         return buildFlags
     }
@@ -119,7 +113,7 @@ public final class Build: Command {
         console.print()
 
         console.info("Toolchain:")
-        let toolchain = try console.backgroundExecute(program: "which", arguments: ["swift"]).trim()
+        let toolchain = try console.backgroundExecute(program: "which", arguments: ["swift"]).makeString().trim()
         console.print(toolchain)
         console.print()
 

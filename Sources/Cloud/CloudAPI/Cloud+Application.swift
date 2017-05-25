@@ -10,6 +10,8 @@ extension ConsoleProtocol {
     ) throws -> Application {
         let app: Application
         
+        pushEphemeral()
+        
         if let repoName = arguments.option("app")?.string {
             app = try cloudFactory
                 .makeAuthedClient(with: self)
@@ -119,6 +121,8 @@ extension ConsoleProtocol {
                 app = try chooseFromList()
             }    
         }
+        
+        popEphemeral()
         
         detail("app", app.name)
         return app
